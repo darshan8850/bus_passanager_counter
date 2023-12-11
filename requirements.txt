@@ -9,7 +9,7 @@ comm==0.1.4
 contourpy==1.2.0
 cvzone==1.6.1
 cycler==0.12.1
-debugpy==1.6.8
+debugpy
 decorator==5.1.1
 executing==1.2.0
 face-detection==0.2.2
