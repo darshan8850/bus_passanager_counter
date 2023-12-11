@@ -1,4 +1,4 @@
-from flask import Flask, Response, render_template, jsonify
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import cv2
 import face_detection
@@ -42,21 +42,33 @@ def detect_faces_and_save(frame):
 
     return frame, count_of_people
 
-@app.route('/video_feed')
+@app.route('/video_feed', methods=['POST'])
 def video_feed():
-    video_path = "C:/Users/HP/Downloads/test.mp4"  
-    vidcap = cv2.VideoCapture(video_path)
-    success, image = vidcap.read()
+    if 'video' not in request.files:
+        return jsonify({'error': 'No video file in the request'})
 
-    if not success:
-        return "Error reading video file"
+    video_file = request.files['video']
+
+    if video_file.filename == '':
+        return jsonify({'error': 'Empty video file'})
+
+    video_bytes = video_file.read()
+    video_np = np.frombuffer(video_bytes, dtype=np.uint8)
+    vidcap = cv2.imdecode(video_np, cv2.IMREAD_UNCHANGED)
+
+    if vidcap is None:
+        return jsonify({'error': 'Error decoding video file'})
 
     create_database()
 
+    success, image = vidcap.read()
+
     while success:
+
         detect_faces_and_save(image)
 
         success, image = vidcap.read()
+
     return jsonify({'result': 'Video parsed'})
 
 @app.route('/get_frames', methods=['GET'])
