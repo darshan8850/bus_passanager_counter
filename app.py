@@ -16,6 +16,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///faces.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.5, nms_iou_threshold=0.3)
+
 class Frame(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     frame_data = db.Column(db.LargeBinary)  # Use LargeBinary to store binary data
@@ -46,7 +48,7 @@ async def detect_faces_and_save(vidObj, media_folder):
 
         while success:
             if frame_counter % sampling_interval == 0:
-                detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.5, nms_iou_threshold=0.3)
+                
                 det_raw = detector.detect(image[:, :, ::-1])
                 dets = det_raw[:, :4]
                 draw_faces(image, dets)
@@ -94,7 +96,6 @@ def video_feed():
 
     success, image = vidObj.read()
     
-    detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.5, nms_iou_threshold=0.3)
     det_raw = detector.detect(image[:, :, ::-1])
     dets = det_raw[:, :4]
     draw_faces(image, dets)
