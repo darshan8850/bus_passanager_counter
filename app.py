@@ -121,6 +121,7 @@ def get_frames():
 
     for frame in frames:
         frames_data.append({
+            'id': frame.id,
             'frame_data': frame.frame_data.decode('latin1'),
             'count_of_people': frame.count_of_people
         })
@@ -130,4 +131,5 @@ def get_frames():
 if __name__ == '__main__':
     with app.app_context():
         create_database()
-        app.run(debug=True)
+        import uvicorn
+        uvicorn.run(app, host="127.0.0.1", port=5000, workers=4)
