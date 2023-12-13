@@ -97,45 +97,45 @@ def video_feed():
     video_file.save(video_path)
 
     vidObj = cv2.VideoCapture(video_path)
-
-    success, image = vidObj.read()
-    
-    det_raw = detector.detect(image[:, :, ::-1])
-    dets = det_raw[:, :4]
-    draw_faces(image, dets)
-
-    count_of_people = len(dets)
-    frame_data_encoded = base64.b64encode(cv2.imencode('.jpg', image)[1].tobytes())
-    frame_data_encoded_str = frame_data_encoded.decode('latin1')
     
     threading.Thread(target=process_upload_thread, args=(vidObj, media_folder)).start()
     
-    return jsonify({'frame': frame_data_encoded_str, 'count_of_people': count_of_people, "id":0,"timestamp":0})
+    return jsonify({"output":"Video uploaded"})
 
 
 
 @app.route('/')
 def home():
     return jsonify(message='Welcome to Bus Passenger Counter!')
-
+    
 @app.route('/get_frames', methods=['GET'])
 def get_frames():
-    frame_id = request.args.get('id')
+    page_number = request.args.get('page')
 
-    if frame_id:
-        # Case: Retrieve a specific frame by ID
-        frame = Frame.query.get(frame_id)
+    if page_number:
+        try:
+            page_number = int(page_number)
+        except ValueError:
+            return jsonify({'error': 'Invalid page number'}), 400
 
-        if frame:
-            frame_data = {
-                'id': frame.id,
-                'frame': frame.frame_data.decode('latin1'),
-                'count_of_people': frame.count_of_people,
-                'timestamp':frame.timestamp
-            }
-            return jsonify(frame_data)
+        # Calculate the offset based on the page number
+        offset = (page_number - 1) * 4
+
+        # Case: Retrieve four frames for the specified page
+        frames = Frame.query.offset(offset).limit(4).all()
+
+        if frames:
+            frames_data = []
+            for frame in frames:
+                frames_data.append({
+                    'id': frame.id,
+                    'frame': frame.frame_data.decode('latin1'),
+                    'count_of_people': frame.count_of_people,
+                    'timestamp': frame.timestamp
+                })
+            return jsonify(frames_data)
         else:
-            return jsonify({'error': 'Frame not found'}), 404
+            return jsonify({'error': 'Frames not found for the specified page'}), 404
     else:
         # Case: Retrieve all frames
         frames = Frame.query.all()
@@ -146,10 +146,8 @@ def get_frames():
                 'id': frame.id,
                 'frame': frame.frame_data.decode('latin1'),
                 'count_of_people': frame.count_of_people,
-                'timestamp':frame.timestamp
+                'timestamp': frame.timestamp
             })
-
-        return jsonify(frames_data)
-
+            
 if __name__ == '__main__':
     app.run(debug=True)
