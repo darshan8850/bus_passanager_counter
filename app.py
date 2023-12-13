@@ -20,13 +20,14 @@ detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.
 
 class Frame(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    frame_data = db.Column(db.LargeBinary)  # Use LargeBinary to store binary data
+    frame_data = db.Column(db.LargeBinary)
     count_of_people = db.Column(db.Integer)
+    timestamp = db.Column(db.Float)  # Add timestamp attribute
 
-    def __init__(self,frame_data,count_of_people):
-        self.frame_data=frame_data
-        self.count_of_people=count_of_people
-
+    def __init__(self, frame_data, count_of_people, timestamp):
+        self.frame_data = frame_data
+        self.count_of_people = count_of_people
+        self.timestamp = timestamp
 
 with app.app_context():
     db.create_all()
@@ -38,13 +39,11 @@ def draw_faces(im, bboxes):
 
 async def detect_faces_and_save(vidObj, media_folder):
     with app.app_context():
-        # Get video properties
         fps = vidObj.get(cv2.CAP_PROP_FPS)
         total_frames = int(vidObj.get(cv2.CAP_PROP_FRAME_COUNT))
         video_duration = total_frames / fps
 
-        # Calculate frame sampling interval
-        target_fps = 1  # One frame per second
+        target_fps = 1
         sampling_interval = int(fps / target_fps)
 
         success, image = vidObj.read()
@@ -52,15 +51,17 @@ async def detect_faces_and_save(vidObj, media_folder):
 
         while success:
             if frame_counter % sampling_interval == 0:
-                
                 det_raw = detector.detect(image[:, :, ::-1])
                 dets = det_raw[:, :4]
                 draw_faces(image, dets)
 
                 count_of_people = len(dets)
 
+                # Get the timestamp of the current frame
+                timestamp = vidObj.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+
                 frame_data_encoded = base64.b64encode(cv2.imencode('.jpg', image)[1].tobytes())
-                new_frame = Frame(frame_data=frame_data_encoded, count_of_people=count_of_people)
+                new_frame = Frame(frame_data=frame_data_encoded, count_of_people=count_of_people, timestamp=timestamp)
                 db.session.add(new_frame)
                 db.session.commit()
 
@@ -68,10 +69,9 @@ async def detect_faces_and_save(vidObj, media_folder):
             frame_counter += 1
 
             if not success:
-                vidObj.release()  # Release the video capture object before breaking out of the loop
+                vidObj.release()
                 break
 
-    # After the loop, release the video capture object and delete the file
     vidObj.release()
     shutil.rmtree(media_folder)
 
