@@ -27,9 +27,9 @@ class Frame(db.Model):
         self.frame_data=frame_data
         self.count_of_people=count_of_people
 
-def create_database():
-    with app.app_context():
-        db.create_all()
+
+with app.app_context():
+    db.create_all()
 
 def draw_faces(im, bboxes):
     for bbox in bboxes:
@@ -133,6 +133,4 @@ def get_frames():
     return jsonify(frames_data)
 
 if __name__ == '__main__':
-    with app.app_context():
-        create_database()
-        app.run(debug=True)
+    app.run(debug=True)
