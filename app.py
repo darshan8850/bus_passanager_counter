@@ -110,7 +110,7 @@ def video_feed():
     
     threading.Thread(target=process_upload_thread, args=(vidObj, media_folder)).start()
     
-    return jsonify({'frame': frame_data_encoded_str, 'count_of_people': count_of_people})
+    return jsonify({'frame': frame_data_encoded_str, 'count_of_people': count_of_people, "id":0})
 
 
 
@@ -120,17 +120,18 @@ def home():
 
 @app.route('/get_frames', methods=['GET'])
 def get_frames():
-    frames = Frame.query.all()
-    frames_data = []
+    frame_id = request.args.get('id')
+    frame = Frame.query.get(frame_id)
 
-    for frame in frames:
-        frames_data.append({
+    if frame:
+        frame_data = {
             'id': frame.id,
-            'frame_data': frame.frame_data.decode('latin1'),
+            'frame': frame.frame_data.decode('latin1'),
             'count_of_people': frame.count_of_people
-        })
-    
-    return jsonify(frames_data)
+        }
+        return jsonify(frame_data)
+    else:
+        return jsonify({'error': 'Frame not found'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
