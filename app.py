@@ -116,7 +116,7 @@ def video_feed():
 
 @app.route('/')
 def home():
-    return jsonify(message='Welcome to the Hugging Face Space!')
+    return jsonify(message='Welcome to Bus Passenger Counter!')
 
 @app.route('/get_frames', methods=['GET'])
 def get_frames():
