@@ -110,7 +110,7 @@ def video_feed():
     
     threading.Thread(target=process_upload_thread, args=(vidObj, media_folder)).start()
     
-    return jsonify({'frame': frame_data_encoded_str, 'count_of_people': count_of_people, "id":0})
+    return jsonify({'frame': frame_data_encoded_str, 'count_of_people': count_of_people, "id":0,"timestamp":0})
 
 
 
@@ -121,17 +121,35 @@ def home():
 @app.route('/get_frames', methods=['GET'])
 def get_frames():
     frame_id = request.args.get('id')
-    frame = Frame.query.get(frame_id)
 
-    if frame:
-        frame_data = {
-            'id': frame.id,
-            'frame': frame.frame_data.decode('latin1'),
-            'count_of_people': frame.count_of_people
-        }
-        return jsonify(frame_data)
+    if frame_id:
+        # Case: Retrieve a specific frame by ID
+        frame = Frame.query.get(frame_id)
+
+        if frame:
+            frame_data = {
+                'id': frame.id,
+                'frame': frame.frame_data.decode('latin1'),
+                'count_of_people': frame.count_of_people,
+                'timestamp':frame.timestamp
+            }
+            return jsonify(frame_data)
+        else:
+            return jsonify({'error': 'Frame not found'}), 404
     else:
-        return jsonify({'error': 'Frame not found'}), 404
+        # Case: Retrieve all frames
+        frames = Frame.query.all()
+        frames_data = []
+
+        for frame in frames:
+            frames_data.append({
+                'id': frame.id,
+                'frame': frame.frame_data.decode('latin1'),
+                'count_of_people': frame.count_of_people,
+                'timestamp':frame.timestamp
+            })
+
+        return jsonify(frames_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
