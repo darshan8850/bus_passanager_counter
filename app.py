@@ -12,7 +12,7 @@ import threading
 app = Flask(__name__)
 
 # Configuration for SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///faces.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///frame.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -22,6 +22,10 @@ class Frame(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     frame_data = db.Column(db.LargeBinary)  # Use LargeBinary to store binary data
     count_of_people = db.Column(db.Integer)
+
+    def __init__(self,frame_data,count_of_people):
+        self.frame_data=frame_data
+        self.count_of_people=count_of_people
 
 def create_database():
     with app.app_context():
