@@ -118,11 +118,10 @@ def get_frames():
         except ValueError:
             return jsonify({'error': 'Invalid page number'}), 400
 
-        # Calculate the offset based on the page number
-        offset = (page_number - 1) * 4
+        start_id = (page_number - 1) * 4 + 1
+        end_id = start_id + 3
 
-        # Case: Retrieve four frames for the specified page
-        frames = Frame.query.offset(offset).limit(4).all()
+        frames = Frame.query.filter(Frame.id.between(start_id, end_id)).all()
 
         if frames:
             frames_data = []
@@ -148,6 +147,8 @@ def get_frames():
                 'count_of_people': frame.count_of_people,
                 'timestamp': frame.timestamp
             })
+
+        return jsonify(frames_data)
             
 if __name__ == '__main__':
     app.run(debug=True)
