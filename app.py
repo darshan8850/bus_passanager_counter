@@ -8,6 +8,8 @@ import os
 import shutil
 import asyncio
 import threading
+from flask_cors import CORS
+
 
 app = Flask(__name__)
 
@@ -15,7 +17,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///frame.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
+CORS(app)
 detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.5, nms_iou_threshold=0.3)
 
 class Frame(db.Model):
