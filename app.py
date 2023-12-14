@@ -103,6 +103,8 @@ def video_feed():
 
     video_file = request.files['video']
     file_name = request.form.get('video_name')
+    file_name = file_name.split(".")[0]
+    
     video_path = os.path.join(media_folder, "uploaded_video.mp4")
     video_file.save(video_path)
 
