@@ -9,6 +9,8 @@ import shutil
 import asyncio
 import threading
 from flask_cors import CORS
+import math
+from sqlalchemy import and_,or_
 
 
 app = Flask(__name__)
@@ -25,11 +27,13 @@ class Frame(db.Model):
     frame_data = db.Column(db.LargeBinary)
     count_of_people = db.Column(db.Integer)
     timestamp = db.Column(db.Float)  # Add timestamp attribute
+    frame_name = db.Column(db.String(100))
 
-    def __init__(self, frame_data, count_of_people, timestamp):
+    def __init__(self, frame_data, count_of_people, timestamp, frame_name):
         self.frame_data = frame_data
         self.count_of_people = count_of_people
         self.timestamp = timestamp
+        self.frame_name = frame_name
 
 with app.app_context():
     db.create_all()
@@ -39,7 +43,7 @@ def draw_faces(im, bboxes):
         x0, y0, x1, y1 = [int(_) for _ in bbox]
         cv2.rectangle(im, (x0, y0), (x1, y1), (0, 0, 255), 2)
 
-async def detect_faces_and_save(vidObj, media_folder):
+async def detect_faces_and_save(vidObj, media_folder,file_name):
     with app.app_context():
         fps = vidObj.get(cv2.CAP_PROP_FPS)
         total_frames = int(vidObj.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -50,7 +54,6 @@ async def detect_faces_and_save(vidObj, media_folder):
 
         success, image = vidObj.read()
         frame_counter = 0
-
         while success:
             if frame_counter % sampling_interval == 0:
                 det_raw = detector.detect(image[:, :, ::-1])
@@ -61,9 +64,13 @@ async def detect_faces_and_save(vidObj, media_folder):
 
                 # Get the timestamp of the current frame
                 timestamp = vidObj.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+                timestamp = round(timestamp, 3)
+                
+                frame_name = f"{file_name}_frame_{frame_counter}_{Frame.query.count() + 1}"
+                print(frame_name)
 
                 frame_data_encoded = base64.b64encode(cv2.imencode('.jpg', image)[1].tobytes())
-                new_frame = Frame(frame_data=frame_data_encoded, count_of_people=count_of_people, timestamp=timestamp)
+                new_frame = Frame(frame_data=frame_data_encoded, count_of_people=count_of_people, timestamp=timestamp, frame_name=frame_name)
                 db.session.add(new_frame)
                 db.session.commit()
 
@@ -77,16 +84,16 @@ async def detect_faces_and_save(vidObj, media_folder):
     vidObj.release()
     shutil.rmtree(media_folder)
 
-def process_upload_thread(vidObj, media_folder):
+def process_upload_thread(vidObj, media_folder,file_name):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    loop.run_until_complete(detect_faces_and_save(vidObj, media_folder))
+    loop.run_until_complete(detect_faces_and_save(vidObj, media_folder,file_name))
     loop.close()
 
 
 @app.route('/video_feed', methods=['POST'])
 def video_feed():
-
+    
     media_folder = "media"
     if not os.path.exists(media_folder):
         os.makedirs(media_folder)
@@ -95,14 +102,25 @@ def video_feed():
         return jsonify({'error': 'No video file in the request'})
 
     video_file = request.files['video']
+    file_name = request.form.get('video_name')
     video_path = os.path.join(media_folder, "uploaded_video.mp4")
     video_file.save(video_path)
 
     vidObj = cv2.VideoCapture(video_path)
+    fps = vidObj.get(cv2.CAP_PROP_FPS)
+    total_frames = int(vidObj.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_duration = total_frames / fps
+
+    target_fps = 1
+    sampling_interval = int(fps / target_fps)
+    frame_counter = 0
+
+    total_frames_at_1fps = int(video_duration * target_fps)
+    total_pages = math.ceil(total_frames_at_1fps / 4)
     
-    threading.Thread(target=process_upload_thread, args=(vidObj, media_folder)).start()
+    threading.Thread(target=process_upload_thread, args=(vidObj, media_folder,file_name)).start()
     
-    return jsonify({"output":"Video uploaded"})
+    return jsonify({"output":"Video uploaded", "total_pages": total_pages})
 
 
 
@@ -113,6 +131,8 @@ def home():
 @app.route('/get_frames', methods=['GET'])
 def get_frames():
     page_number = request.args.get('page')
+    video_name = request.args.get('name')
+
 
     if page_number:
         try:
@@ -123,7 +143,12 @@ def get_frames():
         start_id = (page_number - 1) * 4 + 1
         end_id = start_id + 3
 
-        frames = Frame.query.filter(Frame.id.between(start_id, end_id)).all()
+        # Add a filter to retrieve frames by both ID range and video_name
+        frames = Frame.query.filter(and_(
+            Frame.id.between(start_id, end_id),
+            Frame.frame_name.like(f'{video_name}%')  
+        )).all()
+        #frames = Frame.query.filter(Frame.id.between(start_id, end_id)).all()
 
         if frames:
             frames_data = []
@@ -132,25 +157,28 @@ def get_frames():
                     'id': frame.id,
                     'frame': frame.frame_data.decode('latin1'),
                     'count_of_people': frame.count_of_people,
-                    'timestamp': frame.timestamp
+                    'timestamp': frame.timestamp,
+                    "name": frame.frame_name
                 })
             return jsonify(frames_data)
         else:
-            return jsonify({'error': 'Frames not found for the specified page'}), 404
-    else:
-        # Case: Retrieve all frames
-        frames = Frame.query.all()
-        frames_data = []
+            return jsonify({'error': 'Invalid page number'}), 400
 
-        for frame in frames:
-            frames_data.append({
-                'id': frame.id,
-                'frame': frame.frame_data.decode('latin1'),
-                'count_of_people': frame.count_of_people,
-                'timestamp': frame.timestamp
-            })
 
-        return jsonify(frames_data)
+#        else:
+ #           # Case: Retrieve all frames
+ #           frames = Frame.query.all()
+  #          frames_data = []
+#
+ #           for frame in frames:
+  #              frames_data.append({
+   #                 'id': frame.id,
+    #                'frame': frame.frame_data.decode('latin1'),
+     #               'count_of_people': frame.count_of_people,
+      #              'timestamp': frame.timestamp
+       #         })
+#
+ #           return jsonify(frames_data)
             
 if __name__ == '__main__':
     app.run(debug=True)
