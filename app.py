@@ -104,7 +104,7 @@ def video_feed():
     video_file = request.files['video']
     file_name = request.form.get('video_name')
     file_name = file_name.split(".")[0]
-    
+
     video_path = os.path.join(media_folder, "uploaded_video.mp4")
     video_file.save(video_path)
 
@@ -134,22 +134,22 @@ def home():
 def get_frames():
     page_number = request.args.get('page')
     video_name = request.args.get('name')
-
-
+    print(video_name)
     if page_number:
-        try:
-            page_number = int(page_number)
-        except ValueError:
-            return jsonify({'error': 'Invalid page number'}), 400
-
-        start_id = (page_number - 1) * 4 + 1
-        end_id = start_id + 3
+        page_number = int(page_number)
 
         # Add a filter to retrieve frames by both ID range and video_name
-        frames = Frame.query.filter(and_(
-            Frame.id.between(start_id, end_id),
-            Frame.frame_name.like(f'{video_name}%')  
-        )).all()
+        frames = Frame.query.filter(
+            Frame.frame_name.startswith(video_name)
+        ).all()
+        
+        frames_per_page = 4
+        start_index = (page_number - 1) * frames_per_page
+        end_index = start_index + frames_per_page
+        end_index = min(end_index, len(frames))
+
+        frames = frames[start_index:end_index]
+        
         #frames = Frame.query.filter(Frame.id.between(start_id, end_id)).all()
 
         if frames:
@@ -164,7 +164,7 @@ def get_frames():
                 })
             return jsonify(frames_data)
         else:
-            return jsonify({'error': 'Invalid page number'}), 400
+            return jsonify({'error': 'Invalid page number or name'}), 400
 
 
 #        else:
