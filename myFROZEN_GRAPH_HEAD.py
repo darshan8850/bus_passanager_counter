@@ -68,7 +68,7 @@ class FROZEN_GRAPH_HEAD():
                 idx += 1
 
                 cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), 2, 8)
-                cv2.putText(image, 'score: {:.2f}%'.format(score), (left-5, top-5), 0, 0.55, (0,255,255),2)
+                #cv2.putText(image, 'score: {:.2f}%'.format(score), (left-5, top-5), 0, 0.55, (0,255,255),2)
 
         return image, heads
 
