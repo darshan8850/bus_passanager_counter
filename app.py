@@ -116,9 +116,6 @@ def video_feed():
     if not os.path.exists(media_folder):
         os.makedirs(media_folder)
 
-    if 'video' not in request.files:
-        return jsonify({'error': 'No video file in the request'})
-
     video_file = request.files['video']
     file_name = request.form.get('video_name')
     file_name = file_name.split(".")[0]
