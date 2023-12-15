@@ -11,6 +11,12 @@ import threading
 from flask_cors import CORS
 import math
 from sqlalchemy import and_,or_
+import sys
+import time
+import numpy as np
+import tensorflow as tf
+import cv2
+from PIL import Image
 
 
 app = Flask(__name__)
@@ -21,6 +27,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 CORS(app)
 detector = face_detection.build_detector("DSFDDetector", confidence_threshold=0.5, nms_iou_threshold=0.3)
+
+from myFROZEN_GRAPH_HEAD import FROZEN_GRAPH_HEAD
+
+PATH_TO_CKPT_HEAD = 'models/HEAD_DETECTION_300x300_ssd_mobilenetv2.pb'
+head_detector = FROZEN_GRAPH_HEAD(PATH_TO_CKPT_HEAD)
 
 class Frame(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -60,7 +71,12 @@ async def detect_faces_and_save(vidObj, media_folder,file_name):
                 dets = det_raw[:, :4]
                 draw_faces(image, dets)
 
-                count_of_people = len(dets)
+                count1 = len(dets)
+                
+                im_height, im_width, im_channel = image.shape
+                image = cv2.flip(image, 1)
+                
+                image, count2 = head_detector.run(image, im_width, im_height)
 
                 # Get the timestamp of the current frame
                 timestamp = vidObj.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
@@ -68,6 +84,8 @@ async def detect_faces_and_save(vidObj, media_folder,file_name):
                 
                 frame_name = f"{file_name}_frame_{frame_counter}_{Frame.query.count() + 1}"
                 print(frame_name)
+                #print(len(count2))
+                count_of_people = count1+len(count2)
 
                 frame_data_encoded = base64.b64encode(cv2.imencode('.jpg', image)[1].tobytes())
                 new_frame = Frame(frame_data=frame_data_encoded, count_of_people=count_of_people, timestamp=timestamp, frame_name=frame_name)
